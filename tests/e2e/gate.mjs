@@ -7,7 +7,7 @@
 import { chromium } from "playwright-core";
 
 const PORT = 39290; // reserved for the drawback-analyzer e2e app-under-test
-const URL = `http://127.0.0.1:${PORT}/`;
+const APP_URL = `http://127.0.0.1:${PORT}/`;
 
 let failures = 0;
 function check(name, cond, extra) {
@@ -33,7 +33,7 @@ async function waitForServer(timeoutMs = 20000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const r = await fetch(URL);
+      const r = await fetch(APP_URL);
       if (r.ok) return true;
     } catch {
       /* not up yet */
@@ -56,7 +56,7 @@ try {
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(String(e)));
 
-  await page.goto(URL, { waitUntil: "domcontentloaded" });
+  await page.goto(APP_URL, { waitUntil: "domcontentloaded" });
   // Cold Chrome start + first React mount can be slow; give the evidence surface room.
   await page.waitForFunction(() => Boolean(window.__drawback), null, { timeout: 20000 });
 

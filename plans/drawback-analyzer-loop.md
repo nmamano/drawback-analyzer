@@ -2,6 +2,22 @@
 
 Re-read this file at the start of every iteration. [why: conversations compact, files do not]
 
+## Loop status — COMPLETE pending the human-only deploy (2026-06-19)
+
+The autonomous slice loop is DONE. Slices 1a-1d shipped (reviewer plan-gate + diff-gate
+each), and 1f's NON-CREDENTIALED deploy prep is committed. The app is fully built,
+unit-tested, and real-browser-verified locally:
+- gates: `bun run ci` green (89 tests / 707 assertions), `bun run gate:e2e` GATE_PASS
+  (real system Chrome), `bun run smoke:live` fails closed without DRAWBACK_LIVE_URL.
+- Slice commits: 1a 266→c4e1522, 1b da1d3b9, 1c a65dd2b, 1d 657b7f9, 1f prep (this).
+
+REMAINING (human-only, parked-for-Nil — NOT done in the loop): the Vercel deploy + DNS.
+See "Deferred / parked". Do NOT push / create repo / link / deploy / change DNS without
+Nil's explicit go (runs as Nil's creds, $0 free static tier). When Nil authorizes, run
+the GitHub-connected Vercel path in README "Deploy", hand Nil the exact DNS record, and
+run `smoke:live` against the live URL.
+
+
 ## North star
 
 A static, client-only web app at **drawback.nilmamano.com** where you click out a
@@ -145,8 +161,10 @@ Never reuse or clobber a live/dev instance; each test instance is isolated.
           panels per side, explanation trail ("eliminated on move 7 because White
           moved a queen"), catalog page, demo games, mobile-usable. Adds gate:e2e.
           COMMITTED — bun run ci (89 tests) + gate:e2e GATE_PASS, reviewer-signed.
-- [ ] 1f  Deploy to Vercel static + DNS instructions for drawback.nilmamano.com.
+- [~] 1f  Deploy to Vercel static + DNS instructions for drawback.nilmamano.com.
           GATED on Nil's authorization (rails 2, 3) and Vercel CLI auth.
+          PREP COMMITTED (vercel.json, OG meta, runbook, env-gated smoke:live, eslint
+          override). DEPLOY ITSELF parked-for-Nil — not done autonomously.
 
 ## Deferred / parked
 
@@ -539,6 +557,65 @@ src/* from 1c; docs/research/drawback-catalog-research.md (provenance for the ca
 page); Ludwig's tests/e2e/gate.mjs + scripts as the Playwright/system-Chrome pattern
 (COPY the pattern, never touch Ludwig); Resources section above.
 
-## SLICE-1e (DEFERRED) / SLICE-1f PICKUP — authored after the previous slice commits
-1e crowdsourcing is deferred out of v1. 1f = deploy to Vercel static + DNS; authored
-after 1d commits, gated on Nil's authorization + Vercel CLI auth (parked-for-Nil).
+## SLICE-1f PICKUP — authored after 1d committed (657b7f9). (1e deferred out of v1.)
+
+### What slice 1d taught (fold-in)
+- Product is feature-complete + browser-verified: bun run ci (89 tests) + gate:e2e
+  GATE_PASS. window.__drawback is the stable e2e oracle. The app is a static, no-server,
+  no-network Vite SPA with a single route (in-app toggle) — ideal for static hosting.
+- Reviewer note to ACTION in 1f: tests/e2e/** is currently eslint-IGNORED. Since 1f adds
+  another script (live smoke), replace the ignore with a small eslint override/globals
+  block so browser-gate + script code is linted (browser+node globals), not unlinted.
+
+### Goal
+Deploy the static app to Vercel (free tier, $0) and serve it at
+drawback.nilmamano.com, handing Nil the exact DNS records (Vercel's, which DIFFER from
+Ludwig's Fly records).
+
+### Split: non-credentialed PREP (committable via the gated process) vs human-only DEPLOY
+NON-CREDENTIALED prep (this slice's reviewable code; no creds, no network):
+- vercel.json: static Vite build config (framework vite, build `vite build`, output dist).
+- index.html: OG/Twitter meta for https://drawback.nilmamano.com/ (honest copy; no
+  fabricated claims). Decide OG image vs text-only with reviewer.
+- README deploy section + a DEPLOY runbook (exact steps).
+- scripts/smoke-live.mjs: ENV-GATED live smoke — HARD-REFUSES without DRAWBACK_LIVE_URL
+  set; when set, loads the URL in real Chrome, asserts window.__drawback present + app
+  mounts + key assets 200 over HTTPS. (The scripted live gate; runs only post-deploy.)
+- eslint: add tests/e2e/** + scripts/** override (browser+node globals) instead of the
+  ignore (reviewer note).
+- Gates stay green: bun run ci + bun run gate:e2e. smoke-live refuses without the env.
+
+HUMAN-ONLY / parked-for-Nil (NEVER done autonomously in the loop — rails 2 & 3):
+- Vercel CLI auth on auntie: `vercel login` OR a VERCEL_TOKEN. Currently NOT logged in.
+- Create GitHub repo nmamano/drawback-analyzer (public) + push.
+- Create/link the Vercel project + `vercel deploy --prod` (free static tier, $0).
+- Add custom domain drawback.nilmamano.com; READ the exact DNS record Vercel shows and
+  hand it to Nil as instructions (subdomain CNAME -> cname.vercel-dns.com, or the A
+  value Vercel provides — confirm at domain-add time).
+- Run scripts/smoke-live.mjs with DRAWBACK_LIVE_URL after the cert issues.
+- Before ANY of these credentialed actions: confirm with Nil (runs as Nil's creds) and
+  that he understands the spend is $0; pause if anything would cost money.
+
+### Acceptance criteria
+- Prep: bun run ci + gate:e2e green; vercel.json + meta + README + env-gated smoke +
+  eslint override committed via diff-gate.
+- Deploy (with Nil): app live over HTTPS at the Vercel URL and at
+  drawback.nilmamano.com (cert issued); smoke-live GATE pass against the live URL;
+  DNS records handed to Nil.
+
+### Decide-with-reviewer (1f plan-gate)
+- Deploy path: GitHub-connected Vercel (push repo, link, auto-deploy on push) vs direct
+  `vercel deploy` from local. (Brief wants the public repo too.)
+- OG image: skip (text meta only) for v1, or a simple static card?
+- vercel.json specifics (build/install command, output dir, any headers/cleanUrls).
+- smoke-live env-gating + exact live checks.
+
+### Locked (do not relitigate)
+$0 budget, Vercel free static only; no credentialed action without Nil's explicit go;
+chess.js sole legality (unchanged); never claim official completeness; one focused
+commit on sign-off; no gate weakening.
+
+### Resources
+Ludwig's scripts/smoke-live.mjs + gate-prod.mjs as the live-smoke pattern (COPY the
+pattern, never touch Ludwig; Ludwig is Fly not Vercel, so DNS differs). docs/research
+for provenance. Vercel CLI is installed (v50.37.3) but unauthenticated.

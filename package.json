@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
     "ci": "prettier --check . && eslint . && bun run typecheck && bun test tests/ && vite build",
-    "gate:e2e": "vite build && bun tests/e2e/gate.mjs"
+    "gate:e2e": "vite build && bun tests/e2e/gate.mjs",
+    "smoke:live": "bun scripts/smoke-live.mjs"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
