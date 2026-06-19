@@ -134,9 +134,9 @@ Never reuse or clobber a live/dev instance; each test instance is isolated.
 - [x] 1a  Scaffold (Bun/React/Vite/TS) + chess.js replay shell: enter a prefix,
           render the position + side-to-move, ONE tiny smoke drawback rule.
           COMMITTED — see git log (reviewer-signed plan-gate + diff-gate).
-- [ ] 1b  Core engine: DrawbackRule interface + hypothesis/result/elimination types +
+- [x] 1b  Core engine: DrawbackRule interface + hypothesis/result/elimination types +
           replay-based analysis + 10-15 deterministic rules with positive/negative
-          tests.
+          tests. COMMITTED — 14 sourced rules, reviewer-signed both gates.
 - [ ] 1c  Real MVP catalog: expand to a useful honest subset (target 30+ if
           legitimately sourceable), mark supported/partial/unsupported + source +
           confidence, strong positive & negative example tests per rule.
@@ -284,5 +284,92 @@ rails; copy-not-import Board.tsx; one focused commit on sign-off.
 Resources: see Resources + Elimination-semantics sections above; Ludwig at
 ~/nil/ludwig-chess for the config/Board/evidence-surface patterns.
 
-## SLICE-1b..1f PICKUP — authored after the previous slice commits
+## SLICE-1b PICKUP — authored after 1a committed (c4e1522)
+
+### What slice 1a taught (fold-in)
+- The pipeline works: replay() → analyze() → window.__drawback, all green under
+  `bun run ci`. The DrawbackRule contract `evaluate({side, plies}) -> Elimination |
+  null` proved to be a clean 1b extension point — DO NOT change the fold; ADD rules.
+- chess.js verbose Move fields available per ply: `color, from, to, piece, captured?,
+  promotion?, flags, san`. `flags` includes 'c' (capture), 'e' (en passant), 'b' (2-sq
+  pawn), 'k'/'q' (castle), 'p' (promotion). `legalBefore` is the full verbose legal set
+  the side had BEFORE its move — this is the obligation surface (must-capture etc.).
+- Reviewer non-blocking notes (carry forward):
+  1. UI prefix entry auto-queens promotions. Fine for 1a; the prefix-entry path must be
+     able to represent UNDERPROMOTION before any promotion-sensitive rule or demo in
+     1d. (None of 1b's planned rules are promotion-sensitive, so this is a 1d task.)
+  2. Keep rule ids GENERIC (side-agnostic, e.g. queen-no-move), evaluated per side —
+     better for the per-side model. Keep this convention.
+- App falls back to start position if analyze() errors; UI only ever appends legal SAN.
+
+### Goal
+Formalize the core engine and ship 10-15 deterministic, sourced rules with strong
+positive (eliminated) + negative (stays-possible) tests — spanning prohibition,
+capture-restriction (incl. OBLIGATION), and stateful categories.
+
+### Scope
+- Keep the existing types; ADD lightweight metadata to DrawbackRule so 1c/1d need no
+  refactor: `category` (simple-move-forbid | capture-restriction | stateful |
+  board-condition-loss | random-parameter), `status` ('supported' for all of 1b),
+  `confidence` ('high' | 'medium' | 'low'), `sources` (string[] URLs/labels). Decide
+  exact field names with reviewer.
+- Small pure `rule-helpers.ts` (UI-free): pieceValue, isCapture, isBackward(color,
+  from, to), sameSquare, sidePlies, opponentPrevPly(plies, index). Rules stay tiny.
+- Implement ~14 rules (final list decided in plan-gate), e.g.:
+  - move-forbid: Lame Duck (king can't move), Forward March (no backward), Cess (no
+    h-file), Number of the Beast (no 6th rank), Stop Stalling (no lateral).
+  - capture-restriction (prohibition): True Gentleman (no capturing queens), Vegan (no
+    capturing knights), Conscientious Objectors (no pawn captures), Professional
+    Courtesy (non-pawn can't capture same type).
+  - capture OBLIGATION (uses legalBefore): Checkers (must capture if able), Pacman (if a
+    pawn capture is available, must capture a pawn), Greedy (no capture when a
+    higher-value capture was available).
+  - stateful: Truant (no moving the same piece twice in a row — current.from ===
+    this side's previous ply .to), Turn the Other Cheek (no recapture — can't capture on
+    the square the opponent just captured on).
+- Replace/keep the 1a smoke rule: fold queen-no-move into the real catalog OR drop it
+  once real rules exist (decide in plan-gate; leaning: keep it, recategorized).
+- Each rule: 1+ positive and 1+ negative example test asserting the elimination ply
+  index + reason (and that unrelated rules stay possible).
+
+### Load-bearing mechanics / traps
+- Obligation rules MUST read `legalBefore`, not recompute legality. "Must capture if
+  able" = legalBefore has a capture (flag 'c'/'e') AND the chosen move is not a capture.
+- Greedy needs a value map and compares chosen.captured value vs the max-value capture
+  available in legalBefore. Only constrains CAPTURING moves.
+- Truant: "same piece" is identified by current.from === the side's previous ply's `to`
+  (the piece now sitting where it last landed). "In a row" = the side's consecutive
+  plies (opponent moves between). Castling/promotion edge cases — note in tests.
+- Turn the Other Cheek: opponent's immediately preceding ply (plies[index-1]); recapture
+  = chosen.captured AND chosen.to === that ply's `to` AND that ply was itself a capture.
+- Forward March / Stop Stalling: rank/file deltas; lateral = same rank, different file
+  (NOT backward); knights can move backward too.
+- Determinism: rules are pure functions of plies. No chess.js re-derivation of legality
+  beyond what replay already captured.
+
+### Acceptance criteria
+- `bun run ci` green (format, lint, types app+test, all tests, build).
+- 10-15 rules, each with passing positive + negative tests; obligation + stateful
+  categories represented and tested.
+- Metadata fields present and populated (category/status/confidence/sources) — even if
+  the catalog UI/page comes in 1c/1d.
+- No rule re-implements legality; all lean on chess.js-derived ply data.
+
+### Decide-with-reviewer (raise in 1b plan-gate)
+- The exact rule list + count (target 14).
+- DrawbackRule metadata field names/shape (category/status/confidence/sources).
+- Keep vs drop the 1a smoke rule.
+- How to encode `sources` minimally now (e.g. a label like "community: chess.com all-
+  drawbacks thread" + confidence) so 1c just adds more.
+
+### Locked (do not relitigate)
+chess.js sole legality; analyzer UI-free + pure; the evaluate() fold contract; generic
+side-agnostic rule ids; honest labeling (community-sourced, unofficial); one focused
+commit on sign-off.
+
+### Resources
+docs/research/drawback-catalog-research.md (the sourced subset + confidence), the
+Elimination-semantics and Resources sections above, src/analyzer/* from 1a.
+
+## SLICE-1c..1f PICKUP — authored after the previous slice commits
 (folding in what the previous slice taught)

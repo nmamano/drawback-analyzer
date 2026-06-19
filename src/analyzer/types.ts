@@ -43,17 +43,41 @@ export interface RuleContext {
   plies: PlyInfo[]; // ALL plies of the game (both sides), in order
 }
 
+/** Where a drawback sits in the taxonomy (drives grouping in the 1c/1d catalog). */
+export type DrawbackCategory =
+  | "simple-move-forbid"
+  | "capture-restriction"
+  | "stateful"
+  | "board-condition-loss"
+  | "random-parameter";
+
+/**
+ * Catalog status. A union from the start (even though every 1b rule is "supported")
+ * so 1c/1d can represent unsupported / deferred catalog entries without a reshape.
+ */
+export type DrawbackStatus = "supported" | "unsupported" | "deferred";
+
+/** Confidence in the (community-sourced, unofficial) definition. */
+export type Confidence = "high" | "medium" | "low";
+
 /**
  * A drawback hypothesis. `evaluate` inspects a side's play (within the full ply
  * stream) and returns an Elimination if some move of that side is inconsistent with
  * the drawback, or null if the side is still consistent with it. Prohibition,
  * obligation, and stateful rules all fit this one contract — 1b/1c extend the
  * catalog by ADDING rules; the analyzer fold never changes.
+ *
+ * Metadata (category/status/confidence/sources) keeps the catalog honest and lets
+ * the 1c expansion + 1d catalog page read off the rule with no shape change.
  */
 export interface DrawbackRule {
   id: string;
   title: string;
   description: string;
+  category: DrawbackCategory;
+  status: DrawbackStatus;
+  confidence: Confidence;
+  sources: string[];
   evaluate(ctx: RuleContext): Elimination | null;
 }
 
