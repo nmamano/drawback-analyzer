@@ -1,0 +1,7 @@
+**/dist/
+**/node_modules/
+bun.lock
+
+# Authored Markdown (standing orders, research, README) is owned prose with
+# hand-built tables — keep Prettier away from it so the gate never fights the docs.
+**/*.md

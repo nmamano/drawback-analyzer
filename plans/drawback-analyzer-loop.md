@@ -131,8 +131,9 @@ Never reuse or clobber a live/dev instance; each test instance is isolated.
 
 ## Slice plan
 
-- [ ] 1a  Scaffold (Bun/React/Vite/TS) + chess.js replay shell: enter a prefix,
+- [x] 1a  Scaffold (Bun/React/Vite/TS) + chess.js replay shell: enter a prefix,
           render the position + side-to-move, ONE tiny smoke drawback rule.
+          COMMITTED — see git log (reviewer-signed plan-gate + diff-gate).
 - [ ] 1b  Core engine: DrawbackRule interface + hypothesis/result/elimination types +
           replay-based analysis + 10-15 deterministic rules with positive/negative
           tests.
