@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { analyze } from "../src/analyzer";
+import { analyze, SUPPORTED_RULES, UNSUPPORTED_IDS } from "../src/analyzer";
 import type { Color } from "../src/analyzer";
 
 // Helpers: run analyze and read a side's verdict for a rule id.
@@ -21,9 +21,9 @@ describe("start position", () => {
     if (!o.ok) return;
     expect(o.result.white.eliminated).toHaveLength(0);
     expect(o.result.black.eliminated).toHaveLength(0);
-    expect(o.result.white.possible.length).toBe(14);
-    expect(o.result.black.possible.length).toBe(14);
-    expect(o.result.unsupported).toEqual([]);
+    expect(o.result.white.possible.length).toBe(SUPPORTED_RULES.length);
+    expect(o.result.black.possible.length).toBe(SUPPORTED_RULES.length);
+    expect(o.result.unsupported).toEqual(UNSUPPORTED_IDS);
     expect(o.evidence.sideToMove).toBe("white");
   });
 });

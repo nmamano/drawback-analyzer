@@ -8,9 +8,10 @@ function toColor(c: "w" | "b"): "white" | "black" {
 
 /**
  * Replay a SAN history from the start through chess.js, recording for each ply the
- * position + legal move set BEFORE the move (the obligation surface) and the move
- * actually played. Returns a typed structured error for illegal/unrecognized input
- * instead of letting a raw chess.js throw escape into UI state.
+ * position + legal move set BEFORE the move (the obligation surface), the move
+ * actually played, and the post-move state (fenAfter + whether it gave check). Returns
+ * a typed structured error for illegal/unrecognized input instead of letting a raw
+ * chess.js throw escape into UI state.
  */
 export function replay(history: string[]): ReplayResult {
   const game = new Chess();
@@ -32,6 +33,8 @@ export function replay(history: string[]): ReplayResult {
         legalBefore,
         move,
         san: move.san,
+        fenAfter: game.fen(),
+        givesCheck: game.inCheck(), // after the move it is the opponent's turn
       });
     } catch (e) {
       return {

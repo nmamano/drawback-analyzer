@@ -137,9 +137,10 @@ Never reuse or clobber a live/dev instance; each test instance is isolated.
 - [x] 1b  Core engine: DrawbackRule interface + hypothesis/result/elimination types +
           replay-based analysis + 10-15 deterministic rules with positive/negative
           tests. COMMITTED — 14 sourced rules, reviewer-signed both gates.
-- [ ] 1c  Real MVP catalog: expand to a useful honest subset (target 30+ if
+- [x] 1c  Real MVP catalog: expand to a useful honest subset (target 30+ if
           legitimately sourceable), mark supported/partial/unsupported + source +
           confidence, strong positive & negative example tests per rule.
+          COMMITTED — 40-entry catalog (31 supported + 5 partial + 4 unsupported).
 - [ ] 1d  Product UI: click move entry/editing, possible/eliminated/unsupported
           panels per side, explanation trail ("eliminated on move 7 because White
           moved a queen"), catalog page, demo games, mobile-usable. Adds gate:e2e.
@@ -371,5 +372,88 @@ commit on sign-off.
 docs/research/drawback-catalog-research.md (the sourced subset + confidence), the
 Elimination-semantics and Resources sections above, src/analyzer/* from 1a.
 
-## SLICE-1c..1f PICKUP — authored after the previous slice commits
+## SLICE-1c PICKUP — authored after 1b committed (da1d3b9)
+
+### What slice 1b taught (fold-in)
+- 14 sourced rules ship cleanly on the append-only evaluate({side,plies}) fold.
+  Adding rules never touches analyze(). Metadata (category/status/confidence/sources)
+  is on DrawbackRule and proven by catalog.test.ts.
+- queen-no-move WAS RETIRED for source honesty: "queen cannot move" is not in the
+  community catalog; it was a 1a tracer only. Do NOT reintroduce it. A catalog test
+  locks its absence. (Ignore any lingering queen-no-move mentions in the 1b pickup
+  text above — the test is the source of truth.)
+- Reviewer note to ACTION in 1c (we will touch rules.ts heavily): the rule evaluators
+  use `this.title`/`this.id` inside object methods. Safe with rule.evaluate(...) but
+  fragile if ever destructured. While editing rules.ts, refactor reason generation to
+  close over explicit per-rule constants (or pass metadata into the reason helper)
+  instead of relying on `this`.
+- Test fixtures must be built from the start position via legal SAN (replay starts at
+  the standard position). Watch hidden captures (e.g. Nf3 attacks e5) when asserting
+  "no capture available". Build fixtures, run, and fix the FIXTURE to match reality —
+  never weaken the assertion.
+
+### Goal
+The real MVP catalog: a useful, honest, clearly-labeled subset. Expand SUPPORTED
+deterministic rules to ~30+, add UNSUPPORTED/PARTIAL catalog entries as data, enrich
+source/confidence, and (tracer) model at least one random-parameter family as
+sub-hypotheses. Strong positive + negative tests per supported rule.
+
+### Proposed scope (final shape decided in plan-gate)
+- Introduce a catalog DATA MODEL so unsupported/partial entries exist without being
+  executable: e.g. CatalogEntry = metadata (id, title, description, category, status,
+  confidence, sources) with an OPTIONAL evaluate. Supported entries carry evaluate
+  (the current DrawbackRule); unsupported/partial entries are data-only (no evaluate,
+  never run). analyze() iterates only entries that have evaluate; the catalog/UI reads
+  all entries. Keep window.__drawback shape stable (ids in possible/eliminated/
+  unsupported).
+- Expand supported deterministic rules from 14 to ~30 using docs/research (prefer the
+  ~118 "yes" deterministic, high/medium confidence entries). Each new rule: explicit
+  semantics comment + positive + negative test.
+- Add UNSUPPORTED catalog entries (data only): Fog of War, Lucky, Gambler, Hand and
+  Brainless, Ichthyophobe, Hand and Gigabrain, etc., each with "why unsupported".
+- Add at least ONE random-parameter FAMILY as a sub-hypothesis generator (cheap one
+  first, e.g. Crenellations(color) = 2 sub-hypotheses light/dark; maybe Just Passing
+  Through(rank) = 8). Defer large families (Comfort Zone over 64 squares) unless the
+  reviewer wants them — note the UI cost.
+- `unsupported` in the evidence surface becomes populated (list of unsupported ids);
+  add a test that unsupported entries are present in the catalog and NOT evaluated.
+
+### Load-bearing mechanics / traps
+- Do the `this.*` -> explicit-constant refactor in the reason helper before/while
+  adding rules, so 30 rules don't multiply the fragility.
+- Random-parameter families: each sub-hypothesis is an independent CatalogEntry/rule
+  with a parameter baked into id (e.g. crenellations-light) + a generator. Eliminations
+  are per sub-hypothesis. Keep determinism.
+- Partial drawbacks (lose-conditions, custom board state) — be honest: if a definition
+  is only checkable as a state assertion (not a move filter), either implement it
+  faithfully or mark it status:partial/deferred rather than approximate sloppily.
+- Watch slice size: ~30 rules + families + unsupported is a lot. If it balloons, split
+  with the reviewer (e.g. supported-expansion now, families/optional later) rather than
+  rushing or weakening tests.
+
+### Acceptance criteria
+- `bun run ci` green; ~30+ supported rules, each with positive + negative tests.
+- Catalog data model supports unsupported/partial entries (data-only) + ≥1 random-
+  parameter family; tests prove unsupported entries exist and are not evaluated.
+- Every entry labeled status + confidence + sources; honesty preserved ("supports N
+  known drawbacks", community-sourced, unofficial; official glossary untouched).
+- No approximations smuggled in as "supported"; partial is labeled partial.
+
+### Decide-with-reviewer (raise in 1c plan-gate)
+- The catalog data-model shape (CatalogEntry with optional evaluate vs separate lists).
+- Target supported count (30 vs more) and which research entries to include first.
+- Random-parameter family scope for 1c (which families, how many sub-hypotheses; defer
+  Comfort Zone 64-square?).
+- Whether partial/lose-condition drawbacks are in 1c or deferred.
+
+### Locked (do not relitigate)
+chess.js sole legality; analyzer UI-free + pure; append-only evaluate fold + stable
+window.__drawback shape; generic side-agnostic ids; honest labeling; no fabricated/
+unsourced "supported" drawbacks; one focused commit on sign-off.
+
+### Resources
+docs/research/drawback-catalog-research.md (categories, DC flags, confidence), the
+src/analyzer/* from 1b, the Elimination-semantics + Resources sections above.
+
+## SLICE-1d..1f PICKUP — authored after the previous slice commits
 (folding in what the previous slice taught)

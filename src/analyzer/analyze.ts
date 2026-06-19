@@ -1,5 +1,5 @@
 import { replay } from "./replay";
-import { RULES, UNSUPPORTED_IDS } from "./rules";
+import { SUPPORTED_RULES, UNSUPPORTED_IDS } from "./rules";
 import type {
   AnalysisResult,
   Color,
@@ -9,13 +9,14 @@ import type {
   SideAnalysis,
 } from "./types";
 
-// Fold every rule over one side's play. A rule that returns an Elimination is ruled
-// out (with the 0-based ply index + reason); otherwise the side is still consistent
-// with the drawback, so it stays possible.
+// Fold every SUPPORTED rule over one side's play. A rule that returns an Elimination
+// is ruled out (with the 0-based ply index + reason); otherwise the side is still
+// consistent with the drawback, so it stays possible. Only entries with an evaluate
+// are folded — partial/unsupported catalog entries are never executed.
 function analyzeSide(side: Color, plies: PlyInfo[]): SideAnalysis {
   const possible: string[] = [];
   const eliminated: SideAnalysis["eliminated"] = [];
-  for (const rule of RULES) {
+  for (const rule of SUPPORTED_RULES) {
     const elim = rule.evaluate({ side, plies });
     if (elim) {
       eliminated.push({ id: rule.id, moveIndex: elim.moveIndex, reason: elim.reason });
@@ -36,9 +37,10 @@ export type AnalyzeOutcome =
   | { ok: false; error: ReplayError };
 
 /**
- * Replay the whole history from move 1 and test every drawback hypothesis against
- * it, for both sides. Deterministic and pure. Also builds the machine-oriented
- * evidence object (the UI publishes it to window.__drawback in one place).
+ * Replay the whole history from move 1 and test every supported drawback hypothesis
+ * against it, for both sides. Deterministic and pure. Also builds the machine-oriented
+ * evidence object (the UI publishes it to window.__drawback in one place). The
+ * `unsupported` list mirrors the catalog's non-evaluated ids (partial + unsupported).
  */
 export function analyze(history: string[]): AnalyzeOutcome {
   const replayed = replay(history);

@@ -9,8 +9,9 @@ export type Color = "white" | "black";
  * One ply (half-move) of a replayed game, carrying the legal options that existed
  * BEFORE the move was chosen. That `legalBefore` set is the surface obligation
  * drawbacks inspect (e.g. "must capture if possible" looks for an available capture
- * the side declined). chess.js produced every field — it is the only legality
- * authority.
+ * the side declined). `fenAfter` / `givesCheck` capture post-move board state for
+ * rules like Respectful (no giving check) and Social Distancing, so a rule never has
+ * to re-derive legality with a second engine. chess.js produced every field.
  */
 export interface PlyInfo {
   index: number; // 0-based ply index in the full game
@@ -20,6 +21,8 @@ export interface PlyInfo {
   legalBefore: Move[]; // verbose legal moves available before the move
   move: Move; // verbose move actually played
   san: string; // SAN of the move played
+  fenAfter: string; // FEN after the move
+  givesCheck: boolean; // did this move leave the opponent in check?
 }
 
 export interface ReplayError {
@@ -43,7 +46,7 @@ export interface RuleContext {
   plies: PlyInfo[]; // ALL plies of the game (both sides), in order
 }
 
-/** Where a drawback sits in the taxonomy (drives grouping in the 1c/1d catalog). */
+/** Where a drawback sits in the taxonomy (drives grouping in the catalog). */
 export type DrawbackCategory =
   | "simple-move-forbid"
   | "capture-restriction"
@@ -52,25 +55,26 @@ export type DrawbackCategory =
   | "random-parameter";
 
 /**
- * Catalog status. A union from the start (even though every 1b rule is "supported")
- * so 1c/1d can represent unsupported / deferred catalog entries without a reshape.
+ * Catalog status.
+ * - supported   = evaluated by the analyzer; appears in possible/eliminated.
+ * - partial     = known/cataloged but NOT currently evaluated (e.g. lose-conditions,
+ *                 or definitions needing piece identity we don't fully track yet).
+ * - unsupported = not inferable from move history alone (hidden-info, per-move random,
+ *                 or engine/eval-based) — out of the analysis model.
+ * Only `supported` entries carry an `evaluate`. partial + unsupported are data-only.
  */
-export type DrawbackStatus = "supported" | "unsupported" | "deferred";
+export type DrawbackStatus = "supported" | "unsupported" | "partial";
 
 /** Confidence in the (community-sourced, unofficial) definition. */
 export type Confidence = "high" | "medium" | "low";
 
 /**
- * A drawback hypothesis. `evaluate` inspects a side's play (within the full ply
- * stream) and returns an Elimination if some move of that side is inconsistent with
- * the drawback, or null if the side is still consistent with it. Prohibition,
- * obligation, and stateful rules all fit this one contract — 1b/1c extend the
- * catalog by ADDING rules; the analyzer fold never changes.
- *
- * Metadata (category/status/confidence/sources) keeps the catalog honest and lets
- * the 1c expansion + 1d catalog page read off the rule with no shape change.
+ * A single catalog entry. `evaluate` is OPTIONAL: supported entries provide it
+ * (they are SupportedRule); partial/unsupported entries omit it and are never run.
+ * The analyzer folds ONLY entries with evaluate (see SUPPORTED_RULES). 1c/1d read the
+ * full CATALOG for the catalog page. Metadata keeps coverage honest.
  */
-export interface DrawbackRule {
+export interface CatalogEntry {
   id: string;
   title: string;
   description: string;
@@ -78,7 +82,18 @@ export interface DrawbackRule {
   status: DrawbackStatus;
   confidence: Confidence;
   sources: string[];
-  evaluate(ctx: RuleContext): Elimination | null;
+  evaluate?: (ctx: RuleContext) => Elimination | null;
+}
+
+/** A catalog entry that is actually executed by the analyzer. */
+export interface SupportedRule extends CatalogEntry {
+  status: "supported";
+  evaluate: (ctx: RuleContext) => Elimination | null;
+}
+
+/** Type guard: does this entry have executable analysis logic? */
+export function isSupportedRule(entry: CatalogEntry): entry is SupportedRule {
+  return typeof entry.evaluate === "function";
 }
 
 export interface EliminatedEntry {
@@ -88,20 +103,21 @@ export interface EliminatedEntry {
 }
 
 export interface SideAnalysis {
-  possible: string[]; // rule ids still possible
+  possible: string[]; // supported rule ids still possible
   eliminated: EliminatedEntry[]; // ruled-out rules + when + why
 }
 
 export interface AnalysisResult {
   white: SideAnalysis;
   black: SideAnalysis;
-  unsupported: string[]; // drawbacks not inferable from history (empty in 1a — honest)
+  unsupported: string[]; // catalog ids NOT evaluated by the analyzer (partial + unsupported)
 }
 
 /**
  * Machine-oriented evidence surface mirrored onto window.__drawback. Built in one
  * place (analyze) and published in one place (lib/evidence) so the e2e gate has a
- * stable oracle.
+ * stable oracle. NOTE: `unsupported` currently means "not evaluated by the analyzer"
+ * — it lists both partial and unsupported catalog ids. (May split in 1d.)
  */
 export interface DrawbackEvidence {
   fen: string;

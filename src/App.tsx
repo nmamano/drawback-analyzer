@@ -10,7 +10,7 @@ import {
   sanForMove,
 } from "@/lib/chess";
 import { Board } from "@/components/Board";
-import { analyze, RULES } from "@/analyzer";
+import { analyze, CATALOG, SUPPORTED_RULES } from "@/analyzer";
 import type { SideAnalysis } from "@/analyzer";
 import { publishDrawbackEvidence } from "@/lib/evidence";
 
@@ -18,7 +18,7 @@ const START_FEN = new Chess().fen();
 const SQUARES = squaresInDisplayOrder("white");
 
 function ruleTitle(id: string): string {
-  return RULES.find((r) => r.id === id)?.title ?? id;
+  return CATALOG.find((e) => e.id === id)?.title ?? id;
 }
 
 export function App() {
@@ -79,7 +79,8 @@ export function App() {
   }
 
   const analysis = outcome.ok ? outcome.result : null;
-  const supportedCount = RULES.length;
+  const supportedCount = SUPPORTED_RULES.length;
+  const unsupported = outcome.ok ? outcome.evidence.unsupported : [];
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6">
@@ -87,8 +88,11 @@ export function App() {
         <h1 className="font-heading text-2xl font-extrabold tracking-tight">Drawback Analyzer</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Enter a Drawback Chess game prefix and see which drawbacks are still possible for each
-          side. Supports {supportedCount} known drawback{supportedCount === 1 ? "" : "s"} so far —
-          community-sourced and unofficial; not the full glossary.
+          side. Supports {supportedCount} known drawback{supportedCount === 1 ? "" : "s"}
+          {unsupported.length > 0
+            ? ` (+${unsupported.length} catalogued as partial/unsupported)`
+            : ""}{" "}
+          — community-sourced and unofficial; not the full glossary.
         </p>
       </header>
 
@@ -138,6 +142,28 @@ export function App() {
           <p className="mt-1 text-xs text-muted-foreground">
             {history.length === 0 ? "No moves yet." : `Moves: ${history.join(" ")}`}
           </p>
+
+          {unsupported.length > 0 && (
+            <div
+              className="mt-3 rounded-xl border-2 border-border bg-card p-3"
+              data-testid="unsupported"
+            >
+              <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                Not inferred from moves ({unsupported.length})
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Partial / unsupported drawbacks — shown for honesty, never eliminated by the
+                analyzer.
+              </p>
+              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                {unsupported.map((id) => (
+                  <li key={id} className="text-xs" data-drawback-id={id}>
+                    {ruleTitle(id)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <SidePanel side="Black" analysis={analysis?.black} />
