@@ -11,11 +11,18 @@ unit-tested, and real-browser-verified locally:
   (real system Chrome), `bun run smoke:live` fails closed without DRAWBACK_LIVE_URL.
 - Slice commits: 1a 266→c4e1522, 1b da1d3b9, 1c a65dd2b, 1d 657b7f9, 1f prep (this).
 
-REMAINING (human-only, parked-for-Nil — NOT done in the loop): the Vercel deploy + DNS.
-See "Deferred / parked". Do NOT push / create repo / link / deploy / change DNS without
-Nil's explicit go (runs as Nil's creds, $0 free static tier). When Nil authorizes, run
-the GitHub-connected Vercel path in README "Deploy", hand Nil the exact DNS record, and
-run `smoke:live` against the live URL.
+DEPLOYED 2026-06-19 (Nil authorized; ran as Nil's creds, $0 Vercel free static tier):
+- GitHub: https://github.com/nmamano/drawback-analyzer (public), master pushed.
+- Vercel project drawback-analyzer (scope nmamanos-projects), GitHub-connected for
+  auto-deploy on push. Production: https://drawback-analyzer.vercel.app (READY).
+- Live smoke (DRAWBACK_LIVE_URL=...vercel.app bun run smoke:live) -> SMOKE_PASS.
+- Custom domain drawback.nilmamano.com ADDED to the project. DNS pending Nil at the
+  nilmamano.com provider (Google Domains nameservers): set `A drawback -> 76.76.21.21`
+  (Vercel's recommended record). Cert issues + HTTPS goes live once the record
+  propagates and Vercel verifies.
+
+ONLY REMAINING (parked-for-Nil): add the A record above; then re-run smoke:live against
+https://drawback.nilmamano.com once the cert issues. No further code work.
 
 
 ## North star
