@@ -51,6 +51,7 @@ export function Board({
           <button
             key={sq}
             type="button"
+            data-square={sq}
             disabled={!interactive}
             onClick={() => onSquareClick(sq)}
             className={cn(

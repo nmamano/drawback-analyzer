@@ -141,9 +141,10 @@ Never reuse or clobber a live/dev instance; each test instance is isolated.
           legitimately sourceable), mark supported/partial/unsupported + source +
           confidence, strong positive & negative example tests per rule.
           COMMITTED — 40-entry catalog (31 supported + 5 partial + 4 unsupported).
-- [ ] 1d  Product UI: click move entry/editing, possible/eliminated/unsupported
+- [x] 1d  Product UI: click move entry/editing, possible/eliminated/unsupported
           panels per side, explanation trail ("eliminated on move 7 because White
           moved a queen"), catalog page, demo games, mobile-usable. Adds gate:e2e.
+          COMMITTED — bun run ci (89 tests) + gate:e2e GATE_PASS, reviewer-signed.
 - [ ] 1f  Deploy to Vercel static + DNS instructions for drawback.nilmamano.com.
           GATED on Nil's authorization (rails 2, 3) and Vercel CLI auth.
 
@@ -455,5 +456,89 @@ unsourced "supported" drawbacks; one focused commit on sign-off.
 docs/research/drawback-catalog-research.md (categories, DC flags, confidence), the
 src/analyzer/* from 1b, the Elimination-semantics + Resources sections above.
 
-## SLICE-1d..1f PICKUP — authored after the previous slice commits
-(folding in what the previous slice taught)
+## SLICE-1d PICKUP — authored after 1c committed (a65dd2b)
+
+### What slice 1c taught (fold-in)
+- The analyzer is feature-complete for v1: 40-entry CATALOG, 31 supported executable
+  rules + Crenellations family, 5 partial + 4 unsupported data-only entries. analyze()
+  folds only SUPPORTED_RULES; window.__drawback shape is STABLE and the e2e oracle.
+- Reviewer 1d notes to ACTION:
+  1. The `unsupported` evidence list mixes PARTIAL and UNSUPPORTED ids. The product UI
+     must SPLIT / visually distinguish them so users don't read partial lose-condition
+     work as impossible-to-analyze. (Use CATALOG[].status to bucket: supported /
+     partial / unsupported.)
+  2. Catalog page must expose the research-doc source label + confidence PLAINLY and
+     not imply per-rule primary citations are stronger than they are (sources are a
+     compact community label). Cite docs/research/drawback-catalog-research.md as the
+     provenance.
+- Underpromotion (reviewer 1b note) is now relevant for demo games / editing: 1a
+  auto-queens. No supported rule is promotion-sensitive, but a promotion picker keeps
+  the entry path honest. Decide in plan-gate.
+
+### Goal
+A usable product UI on the existing analyzer, plus the first real-browser gate. Move
+entry/editing, per-side possible/eliminated panels with the explanation trail, a
+supported/partial/unsupported split, a catalog page, demo games, mobile-usable.
+
+### Proposed scope (final shape decided in plan-gate)
+- Move entry/editing: keep click-to-move (chess.js authoritative). Add a move list with
+  click-to-rewind (truncate history to a ply) and a promotion picker (Q/R/B/N) so
+  underpromotion is representable. Undo/Reset stay.
+- Panels per side: possible + eliminated with the reason trail ("eliminated on move N
+  because ..."). Group/scroll for ~31 rows. Show confidence subtly.
+- Split partial vs unsupported (reviewer note 1): three buckets from CATALOG status —
+  Supported (per side), Partial (cataloged, not yet evaluated), Unsupported (not
+  inferable). Partial/Unsupported are global, shown once.
+- Catalog page (toggle/route, no router needed): all 40 entries grouped by category
+  with title, status, confidence, description, and the honest provenance line
+  (community-sourced, unofficial; research doc). Reviewer note 2.
+- Demo games: 2-3 preset prefixes that visibly eliminate several drawbacks; one-click
+  load.
+- Mobile: panels stack; board fits; controls reachable. Pragmatic polish.
+- gate:e2e: tests/e2e/gate.mjs + `bun run gate:e2e`. Build, serve dist on reserved
+  port 39290, drive headless system Chrome (playwright-core, channel 'chrome',
+  --no-sandbox --disable-dev-shm-usage --disable-gpu). JUDGE VIA window.__drawback
+  (fresh reads), never DOM text/pixels; screenshots are artifacts only.
+
+### Load-bearing mechanics / traps
+- e2e oracle is window.__drawback, NOT the DOM. Click by stable selector (board buttons
+  expose aria-label `${square} ...`; add data-square if cleaner). Click-then-verify with
+  retries (clicks race re-renders). Filter expected resource console noise; keep
+  pageerrors strict.
+- Isolation: ONE app instance on reserved port 39290 under the gate; never clobber a dev
+  server. Document the port.
+- Catalog page must not imply official/complete coverage; keep the "supports N known
+  drawbacks" + unofficial framing.
+- Keep the analyzer/types untouched unless the UI genuinely needs a field; window.__
+  drawback shape stays stable for the gate.
+
+### Acceptance criteria
+- `bun run ci` green (unchanged gates) AND `bun run gate:e2e` green (real Chrome).
+- UI: enter a prefix by clicking, see per-side possible/eliminated with reasons; rewind
+  via move list; catalog page lists all entries with status/confidence/provenance;
+  partial vs unsupported visually distinct; demos load; mobile usable.
+- e2e asserts (via window.__drawback): start state (31 possible/side, 9 not-evaluated);
+  after a scripted move a specific supported rule goes possible->eliminated with the
+  expected moveIndex/reason; an unrelated rule stays possible; partial/unsupported ids
+  never appear in a side's possible/eliminated.
+
+### Decide-with-reviewer (raise in 1d plan-gate)
+- Catalog as a route vs a simple in-app toggle (lean: toggle, no router dep).
+- Promotion picker in 1d vs defer (lean: include a minimal one).
+- e2e selector strategy (aria-label vs adding data-square) and the exact scripted
+  checks.
+- How much mobile polish counts as "done" for v1.
+
+### Locked (do not relitigate)
+chess.js sole legality; analyzer pure + unchanged shape; window.__drawback is the e2e
+oracle (never assert on DOM/pixels); honest labeling; reserved port 39290; one focused
+commit on sign-off; no gate weakening.
+
+### Resources
+src/* from 1c; docs/research/drawback-catalog-research.md (provenance for the catalog
+page); Ludwig's tests/e2e/gate.mjs + scripts as the Playwright/system-Chrome pattern
+(COPY the pattern, never touch Ludwig); Resources section above.
+
+## SLICE-1e (DEFERRED) / SLICE-1f PICKUP — authored after the previous slice commits
+1e crowdsourcing is deferred out of v1. 1f = deploy to Vercel static + DNS; authored
+after 1d commits, gated on Nil's authorization + Vercel CLI auth (parked-for-Nil).
