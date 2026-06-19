@@ -15,4 +15,9 @@ export default defineConfig({
       "@": resolve(here, "./src"),
     },
   },
+  // Dev/preview only (no effect on the static production build): allow reaching the
+  // dev server via the office's tailscale hostname, not just an IP literal.
+  server: {
+    allowedHosts: ["auntie"],
+  },
 });
